@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "aws-ecs-iac-template"
+version = "0.1.0"
+description = ""
+authors = ["Cristian Alvarez H <cristian.alvarez@mercadolibre.com.co>"]
+readme = "README.md"
+packages = [{include = "aws_ecs_iac_template"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
