@@ -7,7 +7,15 @@ if [ "$action" = "setup-infra" ]; then
     aws cloudformation create-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
-        --parameters ParameterKey=LambdaName,ParameterValue="$LAMBDA_NAME" ParameterKey=CronExecutionExpression,ParameterValue="$CRON_EXECUTION_EXPRESSION" \
+        --parameters ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+        --capabilities CAPABILITY_NAMED_IAM \
+        | cat
+
+elif [ "$action" = "update-infra" ]; then
+    aws cloudformation update-stack \
+        --stack-name $PROJECT_NAME-stack \
+        --template-body file://cloudformation.yaml \
+        --parameters ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
