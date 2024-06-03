@@ -1,21 +1,30 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
+Parameters:
+  ProjectName:
+    Default: "ecs-example"
+    Description: "Project name"
+    Type: String
+    MinLength: "1"
+    MaxLength: "100"
+    AllowedPattern: ^[a-zA-Z][-a-zA-Z0-9]*
+
 Resources:
 
   ContainerRepository:
     Type: AWS::ECR::Repository
     Properties:
-      RepositoryName: ecs-example-repo
+      RepositoryName: !Join [ "-", [ !Ref ProjectName, "repo" ] ]
 
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: ecs-example-cluster
+      ClusterName: !Join [ "-", [ !Ref ProjectName, "cluster" ] ]
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: ecs-example-task-definition-family
+      Family: !Join [ "-", [ !Ref ProjectName, "task-definition" ] ]
       Cpu: 1 vCPU
       Memory: 2 GB
       NetworkMode: awsvpc
@@ -23,7 +32,7 @@ Resources:
       TaskRoleArn: !Ref TaskRole
       ContainerDefinitions:
         - Image: !Join [ ":", [ !GetAtt ContainerRepository.RepositoryUri, "latest" ] ]
-          Name: ecs-example-container
+          Name: !Join [ "-", [ !Ref ProjectName, "ecs-container" ] ]
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -33,15 +42,65 @@ Resources:
       RequiresCompatibilities:
         - FARGATE
 
+  CronExecutionRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute ecs task"
+      Name: !Join [ "-", [ !Ref ProjectName, "execution-rule" ] ]
+      ScheduleExpression: "cron(10 1 * * ? *)"
+      State: ENABLED
+      Targets:
+        - Id: !Join [ "-", [ !Ref ProjectName, "rule-target" ] ]
+          Arn: !GetAtt Cluster.Arn
+          EcsParameters:
+            TaskDefinitionArn: !Ref TaskDefinition
+            TaskCount: 1
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                Subnets:
+                  # TODO set this as a param or create a vpc in this template
+                  - "subnet-0960a7245ae53828e"
+          RoleArn: !GetAtt SchedulerRole.Arn
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ "-", [ !Ref ProjectName, "scheduler-role" ] ]
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+      Policies:
+        - PolicyName: RunTaskPolicy
+          PolicyDocument:
+            Statement:
+              - Action: ecs:RunTask
+                Effect: Allow
+                Resource:
+                  - !Ref TaskDefinition
+                Condition:
+                  ArnLike: 
+                    "ecs:cluster": !GetAtt Cluster.Arn
+              - Action: iam:PassRole
+                Effect: Allow
+                Resource: ["*"]
+                Condition:
+                  StringLike:
+                    "iam:PassedToService": "ecs-tasks.amazonaws.com"
+
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: ecs-example-logs
+      LogGroupName: !Join [ "-", [ !Ref ProjectName, "logs" ] ]
 
   TaskRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ecs-example-task-role
+      RoleName: !Join [ "-", [ !Ref ProjectName, "task-role" ] ]
       AssumeRolePolicyDocument:
         Statement:
           - Action: sts:AssumeRole
@@ -52,7 +111,7 @@ Resources:
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ecs-example-task-execution-role
+      RoleName: !Join [ "-", [ !Ref ProjectName, "task-execution-role" ] ]
       AssumeRolePolicyDocument:
         Statement:
           - Action: sts:AssumeRole
