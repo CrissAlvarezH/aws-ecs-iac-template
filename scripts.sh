@@ -19,13 +19,6 @@ elif [ "$action" = "update-infra" ]; then
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
-elif [ "$action" = "update-infra" ]; then
-    aws cloudformation update-stack \
-        --stack-name $PROJECT_NAME-stack \
-        --template-body file://cloudformation.yaml \
-        --capabilities CAPABILITY_NAMED_IAM \
-        | cat
-
 elif [ "$action" = "delete-ecr-img" ]; then
     aws ecr batch-delete-image \
         --repository-name "$PROJECT_NAME-repo" \
