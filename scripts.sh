@@ -92,7 +92,7 @@ elif [ "$action" = "default-subnets" ]; then
         | sed "s/\t/\\\,/g"
 
 elif [ "$action" = "deploy" ]; then
-    sh scripts.sh build 
+    sh scripts.sh build no-cache
 
     REPO_URI=$(sh scripts.sh repo-uri)
     REPO_SERVER=$(echo $REPO_URI | awk -F / '{print $1}')
