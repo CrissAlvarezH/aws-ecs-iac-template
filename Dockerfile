@@ -1,4 +1,4 @@
-FROM python:3.11 AS dependencies-stage
+FROM python:3.11-slim AS dependencies-stage
 
 WORKDIR /tmp
 
@@ -8,7 +8,7 @@ COPY ./pyproject.toml ./poetry.lock* ./
 
 RUN poetry export --format requirements.txt --output requirements.txt --without-hashes
 
-FROM python:3.11
+FROM python:3.11-slim
 
 WORKDIR /app
 
