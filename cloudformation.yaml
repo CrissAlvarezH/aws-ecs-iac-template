@@ -9,6 +9,18 @@ Parameters:
     MaxLength: "100"
     AllowedPattern: ^[a-zA-Z][-a-zA-Z0-9]*
 
+  CronExecutionExpression:
+    Default: "*/2 * * * ? *"
+    Description: "Cron execution expression"
+    Type: String
+    MinLength: "10"
+    MaxLength: "30"
+
+  SubnetIds:
+    Description: "List of subnets" 
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: "[]"
+
 Resources:
 
   ContainerRepository:
@@ -47,7 +59,7 @@ Resources:
     Properties:
       Description: "Execute ecs task"
       Name: !Join [ "-", [ !Ref ProjectName, "execution-rule" ] ]
-      ScheduleExpression: "cron(10 1 * * ? *)"
+      ScheduleExpression: !Join [ "", [ "cron(", !Ref CronExecutionExpression, ")" ]]
       State: ENABLED
       Targets:
         - Id: !Join [ "-", [ !Ref ProjectName, "rule-target" ] ]
@@ -59,9 +71,7 @@ Resources:
             NetworkConfiguration:
               AwsVpcConfiguration:
                 AssignPublicIp: ENABLED
-                Subnets:
-                  # TODO set this as a param or create a vpc in this template
-                  - "subnet-0960a7245ae53828e"
+                Subnets: !Ref SubnetIds
           RoleArn: !GetAtt SchedulerRole.Arn
 
   SchedulerRole:

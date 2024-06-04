@@ -1,5 +1,8 @@
 set -e
+
 PROJECT_NAME="ecs-example"
+CRON_EXECUTION_EXPRESSION="*/15 * * * ? *"
+SUBNET_IDS="subnet-00000000\,subnet-11111111"
 
 action=$1
 
@@ -7,7 +10,10 @@ if [ "$action" = "setup-infra" ]; then
     aws cloudformation create-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
-        --parameters ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+        --parameters \
+            ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+            ParameterKey=SubnetIds,ParameterValue="$SUBNET_IDS" \
+            ParameterKey=CronExecutionExpression,ParameterValue="$CRON_EXECUTION_EXPRESSION" \
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
@@ -15,7 +21,10 @@ elif [ "$action" = "update-infra" ]; then
     aws cloudformation update-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
-        --parameters ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+        --parameters \
+            ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
+            ParameterKey=SubnetIds,ParameterValue="$SUBNET_IDS" \
+            ParameterKey=CronExecutionExpression,ParameterValue="$CRON_EXECUTION_EXPRESSION" \
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
@@ -42,6 +51,24 @@ elif [ "$action" = "repo-uri" ]; then
 elif [ "$action" = "build" ]; then
     docker build --no-cache -t $PROJECT_NAME .
 
+elif [ "$action" = "default-subnets" ]; then
+    vpc=$(
+        aws ec2 describe-vpcs \
+        --filters Name=isDefault,Values=true \
+        --query "Vpcs[0].VpcId" \
+        --output text \
+    )
+
+    echo "default vpc = $vpc"
+
+    # replace tabs by \, because it's the valid way to pass a 
+    # param value in cloudformation cli for 'setup-infra' command
+    aws ec2 describe-subnets \
+        --filters "Name=vpcId,Values=$vpc" \
+        --query "Subnets[*].SubnetId" \
+        --output text \
+        | sed "s/\t/\\\,/g"
+
 elif [ "$action" = "deploy" ]; then
     sh scripts.sh build
 
@@ -61,4 +88,7 @@ elif [ "$action" = "deploy" ]; then
 elif [ "$action" = "run" ]; then
     docker run --rm $PROJECT_NAME
 
+else 
+    echo "action '$action' not found"
+    exit 1
 fi
