@@ -110,6 +110,9 @@ elif [ "$action" = "deploy" ]; then
     docker push "$REPO_URI:latest"
     docker push "$REPO_URI:$commit"
 
+    log "pushed image: $REPO_URI:latest"
+    log "pushed image: $REPO_URI:$commit"
+
 elif [ "$action" = "run" ]; then
     docker run --rm $PROJECT_NAME
 
