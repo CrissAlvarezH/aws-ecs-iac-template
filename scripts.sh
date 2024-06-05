@@ -1,11 +1,5 @@
 set -e
 
-PROJECT_NAME="ecs-example"
-CRON_EXECUTION_EXPRESSION="*/15 * * * ? *"
-SUBNET_IDS="subnet-0960a7245ae53828e\,subnet-0bc8639c51c251489\,subnet-05de9ebbb19c04a7b\,subnet-0041d932d16af8ae6\,subnet-06a9d5ebfeeb6274d\,subnet-0b347f25cc5e1a05a"
-
-action=$1
-
 function latest_commit() {
     echo "$(git log --oneline -1 | awk '{print $1}')"
 }
@@ -24,7 +18,22 @@ function log() {
   printf "\n${color}$1${COLOR_OFF}\n"
 }
 
+function read_env_var() {
+    name=$1
+    echo "$(cat .env | grep $name | awk -F \= '{print $2}' | sed 's/"//g')"
+}
+
+PROJECT_NAME=$(read_env_var "PROJECT_NAME")
+CRON_EXECUTION_EXPRESSION=$(read_env_var "CRON_EXECUTION_EXPRESSION")
+SUBNET_IDS=$(read_env_var "SUBNET_IDS")
+
+action=$1
+
 if [ "$action" = "setup-infra" ]; then
+    log "PROJECT_NAME=$PROJECT_NAME"
+    log "CRON_EXECUTION_EXPRESSION=$CRON_EXECUTION_EXPRESSION"
+    log "SUBNET_IDS=$SUBNET_IDS"
+
     aws cloudformation create-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
