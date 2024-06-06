@@ -20,7 +20,7 @@ function log() {
 
 function read_env_var() {
     name=$1
-    echo "$(cat .env | grep $name | awk -F \= '{print $2}' | sed 's/"//g')"
+    echo "$(cat .env.infra | grep $name | awk -F \= '{print $2}' | sed 's/"//g')"
 }
 
 PROJECT_NAME=$(read_env_var "PROJECT_NAME")
@@ -34,6 +34,12 @@ if [ "$action" = "setup-infra" ]; then
     log "CRON_EXECUTION_EXPRESSION=$CRON_EXECUTION_EXPRESSION"
     log "SUBNET_IDS=$SUBNET_IDS"
 
+    log "uploading .env.app in s3 bucket"
+
+    env_file_arn=$(sh scripts.sh upload-env)
+
+    log "env file arn: $env_file_arn"
+
     aws cloudformation create-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
@@ -41,10 +47,17 @@ if [ "$action" = "setup-infra" ]; then
             ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
             ParameterKey=SubnetIds,ParameterValue="$SUBNET_IDS" \
             ParameterKey=CronExecutionExpression,ParameterValue="$CRON_EXECUTION_EXPRESSION" \
+            ParameterKey=EnvFileS3Arn,ParameterValue="$env_file_arn" \
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
 elif [ "$action" = "update-infra" ]; then
+    log "uploading .env.app in s3 bucket"
+
+    env_file_arn=$(sh scripts.sh upload-env)
+
+    log "env file arn: $env_file_arn"
+
     aws cloudformation update-stack \
         --stack-name $PROJECT_NAME-stack \
         --template-body file://cloudformation.yaml \
@@ -52,10 +65,13 @@ elif [ "$action" = "update-infra" ]; then
             ParameterKey=ProjectName,ParameterValue="$PROJECT_NAME" \
             ParameterKey=SubnetIds,ParameterValue="$SUBNET_IDS" \
             ParameterKey=CronExecutionExpression,ParameterValue="$CRON_EXECUTION_EXPRESSION" \
+            ParameterKey=EnvFileS3Arn,ParameterValue="$env_file_arn" \
         --capabilities CAPABILITY_NAMED_IAM \
         | cat
 
 elif [ "$action" = "delete-ecr-img" ]; then
+    # TODO delete all images in repository
+
     aws ecr batch-delete-image \
         --repository-name "$PROJECT_NAME-repo" \
         --image-ids "imageTag=latest" \
@@ -66,6 +82,15 @@ elif [ "$action" = "delete-infra" ]; then
 
     aws cloudformation delete-stack \
         --stack-name $PROJECT_NAME-stack \
+        | cat
+
+    bucket="$PROJECT_NAME-env-file-bucket"
+
+    aws s3 rm s3://$bucket/.env \
+        | cat
+
+    aws s3api delete-bucket \
+        --bucket $bucket \
         | cat
 
 elif [ "$action" = "repo-uri" ]; then
@@ -121,6 +146,28 @@ elif [ "$action" = "deploy" ]; then
 
     log "pushed image: $REPO_URI:latest"
     log "pushed image: $REPO_URI:$commit"
+
+elif [ "$action" = "upload-env" ]; then
+    bucket="$PROJECT_NAME-env-file-bucket"
+
+    # if the bucket is already created it doens't have 
+    # any problem, it just does nothing
+    aws s3api create-bucket \
+        --bucket $bucket \
+        > /dev/null
+
+    # if .env.app file does not exists it will be create because
+    # it's necessary to the cloudformation template
+    [ ! -f .env.app ] && touch .env.app
+
+    aws s3 cp .env.app s3://$bucket/.env > /dev/null
+
+    # WARNING: this arn s3 object structure is following this:
+    # arn:PARTITION:s3:::NAME-OF-YOUR-BUCKET
+    # where PARTITION is 'aws', 'aws-us-gov' o 'aws-cn' depending
+    # on whether you're in general aws, GovCloud or Chine respectively.
+    # so if you are in a diferent partition just change de arn structure
+    echo "arn:aws:s3:::$bucket/.env"
 
 elif [ "$action" = "run" ]; then
     docker run --rm $PROJECT_NAME

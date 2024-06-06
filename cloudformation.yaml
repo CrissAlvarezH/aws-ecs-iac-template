@@ -21,6 +21,10 @@ Parameters:
     Type: List<AWS::EC2::Subnet::Id>
     Default: "[]"
 
+  EnvFileS3Arn:
+    Description: "S3 arn of the env file"
+    Type: String
+
 Resources:
 
   ContainerRepository:
@@ -45,6 +49,9 @@ Resources:
       ContainerDefinitions:
         - Image: !Join [ ":", [ !GetAtt ContainerRepository.RepositoryUri, "latest" ] ]
           Name: !Join [ "-", [ !Ref ProjectName, "ecs-container" ] ]
+          EnvironmentFiles:
+            - Type: s3
+              Value: !Ref EnvFileS3Arn
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -117,7 +124,7 @@ Resources:
             Effect: Allow
             Principal:
               Service: ecs-tasks.amazonaws.com
-  
+
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -130,7 +137,19 @@ Resources:
               Service: ecs-tasks.amazonaws.com
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-        
+      Policies:
+        - PolicyName: TaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Action: s3:GetObject
+                Effect: Allow
+                Resource: 
+                  - !Ref EnvFileS3Arn
+              - Action: s3:GetBucketLocation
+                Effect: Allow
+                Resource:
+                  - !Select [ 0, !Split [ "/", !Ref EnvFileS3Arn ] ]
+
 Outputs:
   RepositoryUri:
     Description: Docker image repository uri
