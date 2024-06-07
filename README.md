@@ -3,8 +3,9 @@ Plantilla para crear la infraestructura usando aws cloudformation de un cluster 
 
 <img width="600px" src='https://github.com/CrissAlvarezH/aws-ecs-iac-template/blob/main/infra-diagram.png'/>
 
-# Variables de entorno
-Encontrarás un archivo `.env.example` con el contenido mostrado a continuación, debes copiarlo y pegarlo en un archivo `.env` y 
+## Variables de infraestructura
+Encontrarás un archivo `.env.infra.example` que hace referencia a las variables de entorno necesarias para los scripts
+de IAC, el contenido es mostrado a continuación, debes copiarlo y pegarlo en un archivo `.env.infra` y 
 establecer los valores que te interesen.
 ```
 PROJECT_NAME="ecs-example"
@@ -12,6 +13,12 @@ CRON_EXECUTION_EXPRESSION="*/5 * * * ? *"
 SUBNET_IDS="subnet-111111111\,subnet-00000000\"
 ```
 Cada vez que ejecutes alguno de los siguientes scripts estas variables serán leidas y usadas para su ejecución.
+
+## Variables de aplicación
+Por otro lado, las variables de entorno que necesite tu aplicacion deberan ser establecidas en un archivo llamado
+`.env.app`, cuando el comando `sh scripts.sh deploy` se ejecute, estas variables seran subidas a un bucket que será
+usado por el contenedor docker mientras se ejecuta, ademas puede
+cargarlas en cualquier momento usando el comando `sh scripts.sh upload-env`.
 
 # Scripts
 En el codigo puede encontrar un archivo `scripts.sh` el cual contiene el codigo necesario para deployar la infraestructura y manipularla
